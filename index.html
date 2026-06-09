@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>忠勇文化陈列馆 - 3D 数字化导览系统</title>
     <style>
         :root {
@@ -13,7 +13,7 @@
             --gold-title: #dfb78c;      /* 牌匾淡金色字体 */
         }
 
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: "STKaiti", "Kaiti SC", "华文楷体", serif; background-color: var(--bg-theme); color: white; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: "STKaiti", "Kaiti SC", "华文楷体", serif; background-color: var(--bg-theme); color: white; -webkit-user-select: none; user-select: none; }
 
         /* 让 Three.js 画布真正铺满全屏，防止射线拾取坐标错位 */
         #webgl-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: auto; }
@@ -88,8 +88,10 @@
         }
 
         /* ================= 页面 2 & 3：3D 空间交互层 ================= */
+        /* ⚠️ 核心修正：这里设为 pointer-events: none，防止无形的透明大框把平板手势拦截 */
         #threed-ui-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
         
+        /* 内部真正的按钮和面板重新恢复接收手势事件 */
         .left-controls {
             position: absolute; top: 45px; left: 45px; display: flex;
             flex-direction: column; gap: 20px; pointer-events: auto;
@@ -104,6 +106,7 @@
             border: 1px solid rgba(0,0,0,0.15); padding: 10px 24px; border-radius: 6px;
             font-size: 1.15rem; font-weight: bold; cursor: pointer; letter-spacing: 3px;
             box-shadow: 0 6px 15px rgba(0,0,0,0.25); transition: all 0.25s;
+            touch-action: manipulation;
         }
         .classic-btn:hover { background-color: #f7ebd0; transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0,0,0,0.3); }
 
@@ -165,7 +168,7 @@
 
 <canvas id="webgl-canvas"></canvas>
 
-<div id="op-tip" class="hidden">🖱️ 拖拽鼠标旋转视角 | 📜 滚轮缩放 | ⌨️ WASD 移动键入</div>
+<div id="op-tip" class="hidden">👆 拖拽旋转视角 | 🤏 双指缩放模型 | 🔴 点选查阅标志</div>
 
 <div id="homepage-container">
     <div class="home-main-row">
@@ -223,6 +226,7 @@
     let scene, camera, renderer, model, raycaster, mouse;
     let isInteracting = false, lastX = 0, lastY = 0;
     let pointerDownX = 0, pointerDownY = 0;
+    let startTouchDistance = 0; // ⚠️ 用于精确记录移动端双指手势的初始像素距离
     const markers = []; 
     let routeMarkers = []; 
 
@@ -293,41 +297,31 @@
 
         loadYourOwnModel('6777.glb');
 
-        window.addEventListener('mousemove', onMouseMove);
+        // ⚠️ 鼠标与多端触控手势统一绑定
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('touchmove', onPointerMove, { passive: false });
+
         window.addEventListener('mousedown', onPointerDown);
+        window.addEventListener('touchstart', onPointerDown, { passive: false });
+
         window.addEventListener('mouseup', onPointerUp);
+        window.addEventListener('touchend', onPointerUp, { passive: false });
+
         window.addEventListener('wheel', onWindowWheel, { passive: false }); 
         window.addEventListener('resize', onResize);
 
         window.addEventListener('keydown', (e) => { if(e.key in keysPressed) keysPressed[e.key] = true; });
         window.addEventListener('keyup', (e) => { if(e.key in keysPressed) keysPressed[e.key] = false; });
 
+        // 屏蔽细节面板内部的手势冒泡，防止滑动或点击面板时触发背景视角的转动
         const detailPanel = document.getElementById('detail-panel');
-        detailPanel.addEventListener('click', function() { closeDetailPanel(); });
+        detailPanel.addEventListener('click', function(e) { e.stopPropagation(); closeDetailPanel(); });
         detailPanel.addEventListener('pointerdown', (e) => e.stopPropagation());
+        detailPanel.addEventListener('touchstart', (e) => e.stopPropagation());
         detailPanel.addEventListener('wheel', (e) => e.stopPropagation());
         detailPanel.addEventListener('mousemove', (e) => e.stopPropagation());
+        detailPanel.addEventListener('touchmove', (e) => e.stopPropagation());
         
-        window.addEventListener('click', function(e) {
-            if (!document.getElementById('homepage-container').classList.contains('hidden') || e.target.tagName !== 'CANVAS') return;
-            const rect = renderer.domElement.getBoundingClientRect();
-            const clickMouse = new THREE.Vector2();
-            clickMouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-            clickMouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-            const clickRaycaster = new THREE.Raycaster();
-            clickRaycaster.setFromCamera(clickMouse, camera);
-
-            if (model) {
-                const intersects = clickRaycaster.intersectObject(model, true);
-                if (intersects.length > 0) {
-                    const worldPoint = intersects[0].point;
-                    const localPoint = model.worldToLocal(worldPoint.clone());
-                    console.log(`📍 拾取点位成功 -> relPos: { x: ${localPoint.x.toFixed(2)}, y: ${localPoint.y.toFixed(2)}, z: ${localPoint.z.toFixed(2)} }`);
-                }
-            }
-        });
-
         animate(0);
     }
 
@@ -393,7 +387,7 @@
         const curve = new THREE.CatmullRomCurve3(points);
         
         const pathSegments = 64;   
-        const tubeRadius = 0.05;    /* 💡 在这里改动线的粗细 */
+        const tubeRadius = 0.05;   
         const radiusSegments = 8;  
         const closed = false;      
         
@@ -408,11 +402,7 @@
 
         routeLine = new THREE.Mesh(geometry, material); 
         
-        if (model) {
-            model.add(routeLine);
-        } else {
-            scene.add(routeLine);
-        }
+        if (model) { model.add(routeLine); } else { scene.add(routeLine); }
 
         points.forEach((pt, index) => {
             const canvas = document.createElement('canvas');
@@ -446,7 +436,6 @@
                 routeMarkers.push(sprite);
             }
         });
-        console.log(`三维实体化导览动线生成成功，设定半径粗细为: ${tubeRadius}`);
     }
 
     function handleKeyboardMovement() {
@@ -462,16 +451,15 @@
     }
 
     function onWindowWheel(e) {
-        if (document.getElementById('homepage-container').classList.contains('hidden')) {
-            e.preventDefault(); 
-            const scaleAmount = targetDistance * 0.08;
-            if (e.deltaY < 0) {
-                targetDistance -= scaleAmount; 
-            } else {
-                targetDistance += scaleAmount; 
-            }
-            targetDistance = Math.max(minDistance, Math.min(maxDistance, targetDistance));
+        if (document.getElementById('homepage-container').classList.contains('hidden')) return;
+        e.preventDefault(); 
+        const scaleAmount = targetDistance * 0.08;
+        if (e.deltaY < 0) {
+            targetDistance -= scaleAmount; 
+        } else {
+            targetDistance += scaleAmount; 
         }
+        targetDistance = Math.max(minDistance, Math.min(maxDistance, targetDistance));
     }
 
     function enterMuseum() {
@@ -521,25 +509,119 @@
         }
     }
 
+    // 统一获取当前坐标的底层工具函数（完美平滑鼠标和多点触控）
+    function updateMouseCoords(e) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        let clientX, clientY;
+        
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+        
+        mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+        return { clientX, clientY };
+    }
+
     function onPointerDown(e) {
-        if (e.target.tagName === 'CANVAS') {
-            isInteracting = true;
-            lastX = e.clientX; lastY = e.clientY;
-            pointerDownX = e.clientX; pointerDownY = e.clientY;
+        if (e.target.tagName !== 'CANVAS') return;
+        
+        isInteracting = true;
+        
+        // ⚠️ 核心修复一：当检测到平板屏幕有多于两个触控点时，立刻优先记录双指初始空间像素宽度
+        if (e.touches && e.touches.length >= 2) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            startTouchDistance = Math.sqrt(dx * dx + dy * dy);
+            return; // 提前退出，切断单指旋转逻辑的干扰
+        }
+        
+        // 正常单指或电脑鼠标点击
+        const coords = updateMouseCoords(e);
+        lastX = coords.clientX; 
+        lastY = coords.clientY;
+        pointerDownX = coords.clientX; 
+        pointerDownY = coords.clientY;
+    }
+
+    function onPointerMove(e) {
+        // 当进入 3D 展馆后，在 Canvas 区域上强制阻止平板自带的“网页下拉刷新/滑出黑底”默认手势行为
+        if (document.getElementById('homepage-container').classList.contains('hidden') && e.target.tagName === 'CANVAS') {
+            if(e.cancelable) e.preventDefault(); 
+        }
+        
+        const coords = updateMouseCoords(e);
+
+        // ⚠️ 核心修复二：多点触控（双指缩放）高阶比例映射计算
+        if (isInteracting && e.touches && e.touches.length >= 2) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            const touchDistance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (startTouchDistance > 0) {
+                const factor = touchDistance / startTouchDistance;
+                
+                // 将拉伸比例直接作用于相机目标距离，完美还原原生手感
+                targetDistance = targetDistance / factor;
+                targetDistance = Math.max(minDistance, Math.min(maxDistance, targetDistance));
+                
+                // 实时动态更新基准值，保证缩放体验丝滑连续，不卡顿、不突变
+                startTouchDistance = touchDistance; 
+            }
+            return; // 缩放中不再响应单指拖拽视野旋转
+        }
+
+        // 单指或电脑鼠标拖拽：旋转视角逻辑
+        if (isInteracting && (!e.touches || e.touches.length === 1)) {
+            targetTheta += (coords.clientX - lastX) * 0.007; 
+            targetPhi -= (coords.clientY - lastY) * 0.007;
+            targetPhi = Math.max(0.1, Math.min(Math.PI / 2 - 0.02, targetPhi));
+            lastX = coords.clientX; 
+            lastY = coords.clientY;
+        }
+
+        // 桌面端鼠标射线悬停特效气泡（平板触控无需此行为）
+        if (e.type === 'mousemove') {
+            raycaster.setFromCamera(mouse, camera);
+            const checkHitTargets = [];
+            markers.forEach(group => {
+                const container = group.children[0]; 
+                if(container.userData.isHitContainer) checkHitTargets.push(container);
+            });
+
+            const intersects = raycaster.intersectObjects(checkHitTargets, true);
+            const tip = document.getElementById('cursor-tip');
+            if (intersects.length > 0) {
+                tip.style.display = 'block';
+                tip.style.left = (coords.clientX + 15) + 'px';
+                tip.style.top = (coords.clientY + 15) + 'px';
+                tip.innerHTML = `🏮 点选查阅：${intersects[0].object.userData.title}`;
+                document.body.style.cursor = 'pointer';
+            } else {
+                tip.style.display = 'none';
+                document.body.style.cursor = 'default';
+            }
         }
     }
 
     function onPointerUp(e) {
+        if (!isInteracting) return;
         isInteracting = false;
-        if (e.target.tagName !== 'CANVAS' || e.button !== 0) return;
-        if (Math.abs(e.clientX - pointerDownX) > 4 || Math.abs(e.clientY - pointerDownY) > 4) return;
+        startTouchDistance = 0; // 手指离开时清空缩放标记位
 
-        const rect = renderer.domElement.getBoundingClientRect();
-        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        if (e.target.tagName !== 'CANVAS') return;
+        
+        let endX = (e.changedTouches && e.changedTouches.length > 0) ? e.changedTouches[0].clientX : e.clientX;
+        let endY = (e.changedTouches && e.changedTouches.length > 0) ? e.changedTouches[0].clientY : e.clientY;
+
+        // 如果手指或鼠标在屏幕上滑动的物理距离过长，判定用户是在“旋转视野”，直接拒绝触发热点标签弹出层
+        if (Math.abs(endX - pointerDownX) > 10 || Math.abs(endY - pointerDownY) > 10) return;
 
         raycaster.setFromCamera(mouse, camera);
-        
         const checkHitTargets = [];
         markers.forEach(group => {
             const container = group.children[0]; 
@@ -551,40 +633,6 @@
             const hitMesh = intersects[0].object;
             const intersectPoint = intersects[0].point; 
             openDetailPanel(hitMesh.userData, intersectPoint); 
-        }
-    }
-
-    function onMouseMove(e) {
-        const rect = renderer.domElement.getBoundingClientRect();
-        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-        if (isInteracting) {
-            targetTheta += (e.clientX - lastX) * 0.005;
-            targetPhi -= (e.clientY - lastY) * 0.005;
-            targetPhi = Math.max(0.1, Math.min(Math.PI / 2 - 0.02, targetPhi));
-            lastX = e.clientX; lastY = e.clientY;
-        }
-
-        raycaster.setFromCamera(mouse, camera);
-        
-        const checkHitTargets = [];
-        markers.forEach(group => {
-            const container = group.children[0]; 
-            if(container.userData.isHitContainer) checkHitTargets.push(container);
-        });
-
-        const intersects = raycaster.intersectObjects(checkHitTargets, true);
-        const tip = document.getElementById('cursor-tip');
-        if (intersects.length > 0) {
-            tip.style.display = 'block';
-            tip.style.left = (e.clientX + 15) + 'px';
-            tip.style.top = (e.clientY + 15) + 'px';
-            tip.innerHTML = `🏮 点选查阅：${intersects[0].object.userData.title}`;
-            document.body.style.cursor = 'pointer';
-        } else {
-            tip.style.display = 'none';
-            document.body.style.cursor = 'default';
         }
     }
 
