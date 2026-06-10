@@ -61,87 +61,77 @@
             box-shadow: 0 6px 15px rgba(0,0,0,0.25); transition: all 0.25s; touch-action: manipulation;
         }
 
+        /* 详情面板容器 */
         .right-info-panel {
             position: absolute; top: 30px; height: calc(100% - 60px); width: 450px; right: -560px; color: var(--text-dark);
-            box-shadow: -10px 10px 35px rgba(0,0,0,0.25); transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: -10px 10px 35px rgba(0,0,0,0.25); transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1), bottom 0.4s ease-out;
             pointer-events: auto; display: flex; flex-direction: column; z-index: 200; border-radius: 12px; overflow: hidden;
             background-color: var(--panel-paper); 
         }
         .right-info-panel.open { right: 30px !important; }
         
+        /* 🛠️ 核心优化：将关闭按钮移入面板内，定位在右上角，设置 80% 透明度 */
         .panel-close-btn { 
-            position: absolute; top: 20px; left: -45px; width: 45px; height: 45px; 
-            background: var(--panel-paper); border-radius: 8px 0 0 8px; 
-            box-shadow: -6px 4px 12px rgba(0,0,0,0.15); font-size: 1.8rem; 
-            text-align: center; line-height: 41px; cursor: pointer; color: var(--text-dark); 
-            z-index: 210; pointer-events: auto;
+            position: absolute; 
+            top: 20px; 
+            right: 20px; /* 定位在右上角 */
+            width: 40px; 
+            height: 40px; 
+            background: rgba(44, 37, 35, 0.8); /* 经典深色背景，80%不透明度 */
+            color: var(--btn-beige); /* 米色图标 */
+            border-radius: 50%; /* 圆形按钮更具现代感 */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25); 
+            font-size: 1.4rem; 
+            text-align: center; 
+            line-height: 40px; 
+            cursor: pointer; 
+            z-index: 260; /* 确保悬浮在图片之上 */
+            pointer-events: auto;
+            transition: all 0.2s ease;
+        }
+        .panel-close-btn:active {
+            transform: scale(0.9);
+            background: rgba(44, 37, 35, 0.95);
         }
 
-        .panel-img-header { width: 100%; height: 300px; overflow: hidden; background: #ccc; }
+        /* 图片头部区域，作为定位锚点 */
+        .panel-img-header { position: relative; width: 100%; height: 300px; overflow: hidden; background: #ccc; }
         .panel-img-header img { width: 100%; height: 100%; object-fit: cover; }
+        
         .panel-body-content { padding: 30px; flex: 1; overflow-y: auto; box-sizing: border-box; -ms-overflow-style: none; scrollbar-width: none; }
         .panel-body-content::-webkit-scrollbar { display: none; }
         .panel-main-title { font-size: 2.2rem; font-weight: bold; margin: 0 0 5px 0; letter-spacing: 4px; }
         .panel-divider { width: 100%; height: 2px; background: rgba(44,37,35,0.2); margin: 15px 0; }
         .panel-desc-text { font-size: 1.1rem; line-height: 1.8; text-align: justify; white-space: pre-wrap; color: #3a3230; }
 
-        #cursor-tip { position: fixed; pointer-events: none; background: rgba(44,37,35,0.92); padding: 8px 16px; border-radius: 4px; font-size: 0.95rem; color: var(--btn-beige); display: none; z-index: 1000; border: 1px solid var(--btn-beige); }
-        #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-theme); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 2000; color: var(--btn-beige); }
+        #cursor-tip { position: fixed; pointer-events: none; background: rgba(44, 37, 35, 0.92); padding: 8px 16px; border-radius: 4px; font-size: 0.95rem; color: var(--btn-beige); display: none; z-index: 1000; border: 1px solid var(--btn-beige); }
+        #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-theme); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 2000; color: var(--btn-beige); }
         .spinner { width: 40px; height: 40px; border: 3px solid rgba(235,220,185,0.2); border-radius: 50%; border-top-color: var(--btn-beige); animation: spin 1s infinite linear; }
         @keyframes spin { to { transform: rotate(360deg); } }
         #op-tip { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; z-index: 99; letter-spacing: 1px; pointer-events: none; text-align: center; white-space: nowrap;}
         .hidden { display: none !important; }
 
-/* ... 上面是你原本的各种样式 ... */
-        #op-tip { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; z-index: 99; letter-spacing: 1px; pointer-events: none; text-align: center; white-space: nowrap;}
-        .hidden { display: none !important; }
-
-        /* 💡 ================= 在这里插入新样式 ================= */
+        /* 大图封面与点击提示 */
         .cover-box.full-width-cover {
-            flex: 1;
-            width: 100%;
-            height: 100%;
-            background: #555; 
-            border-radius: 12px;
-            overflow: hidden;
-            position: relative; 
-            box-shadow: 0 12px 35px rgba(0,0,0,0.35); 
-            cursor: pointer;
+            flex: 1; width: 100%; height: 100%; background: #555; 
+            border-radius: 12px; overflow: hidden; position: relative; 
+            box-shadow: 0 12px 35px rgba(0,0,0,0.35); cursor: pointer;
         }
-        .cover-box.full-width-cover img { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-        }
+        .cover-box.full-width-cover img { width: 100%; height: 100%; object-fit: cover; }
+        
         .enter-tip-text {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: var(--btn-beige);    
-            font-size: 1rem;
-            font-weight: bold;
-            letter-spacing: 3px;
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85); 
-            background: rgba(44, 37, 35, 0.55); 
-            padding: 8px 24px;
-            border-radius: 20px;
-            border: 1px solid rgba(235, 220, 185, 0.3);
-            pointer-events: none;
-            white-space: nowrap;
-            animation: hintPulse 2s infinite ease-in-out;
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            color: var(--btn-beige); font-size: 1rem; font-weight: bold; letter-spacing: 3px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85); background: rgba(44, 37, 35, 0.55); 
+            padding: 8px 24px; border-radius: 20px; border: 1px solid rgba(235, 220, 185, 0.3);
+            pointer-events: none; white-space: nowrap; animation: hintPulse 2s infinite ease-in-out;
         }
         @keyframes hintPulse {
             0%, 100% { opacity: 0.85; transform: translate(-50%, 0); }
             50% { opacity: 1; transform: translate(-50%, -3px); }
         }
-        /* 💡 ================= 新样式结束 ================= */
 
-        /* 紧接着就是原有的手机端适配响应式代码 */
-        @media screen and (max-width: 768px) {
-            #homepage-container { padding: 16px; gap: 16px; overflow-y: auto; }
-            ...
-
+        /* 移动端适配响应式代码 */
         @media screen and (max-width: 768px) {
             #homepage-container { padding: 16px; gap: 16px; overflow-y: auto; }
             .home-main-row { flex-direction: column; height: auto; flex: none; gap: 16px; }
@@ -160,15 +150,23 @@
                 left: 0 !important; right: 0 !important;
                 border-radius: 16px 16px 0 0; 
                 box-shadow: 0 -10px 30px rgba(0,0,0,0.3);
-                transition: bottom 0.4s ease-out !important;
             }
             .right-info-panel.open { bottom: 0 !important; right: 0 !important; }
+            
+            /* 🛠️ 移动端复用右上角的半透明圆圈按钮，保持视觉逻辑统一 */
             .panel-close-btn {
-                left: auto !important; right: 16px !important; top: 16px !important;
-                border-radius: 50% !important; width: 36px !important; height: 36px !important;
-                line-height: 34px !important; background: rgba(0,0,0,0.6) !important;
-                color: #fff !important; font-size: 1.2rem !important;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important; z-index: 250;
+                top: 16px !important; 
+                right: 16px !important; 
+                left: auto !important;
+                border-radius: 50% !important; 
+                width: 36px !important; 
+                height: 36px !important;
+                line-height: 36px !important; 
+                background: rgba(44, 37, 35, 0.8) !important;
+                color: var(--btn-beige) !important; 
+                font-size: 1.2rem !important;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important; 
+                z-index: 260 !important;
             }
 
             .panel-img-header { height: 200px; }
@@ -188,16 +186,15 @@
 
 <canvas id="webgl-canvas"></canvas>
 
-<div id="op-tip" class="hidden">拖拽旋转 | 双指缩放 | 点击热点查阅</div>
+<div id="op-tip" class="hidden">手指拖拽旋转 | 双指缩放 | 点击古建筑热点</div>
 
 <div id="homepage-container">
-   <div class="home-main-row">
-    <div class="cover-box full-width-cover" onclick="enterMuseum()">
-        <img src="img/主页1 .jpg" alt="数字化导览陈列馆">
-        
-        <div class="enter-tip-text">点击进入三维导航</div>
+    <div class="home-main-row">
+        <div class="cover-box full-width-cover" onclick="enterMuseum()">
+            <img src="img/主页1 .jpg" alt="数字化导览陈列馆">
+            <div class="enter-tip-text">点击进入三维导航</div>
+        </div>
     </div>
-</div>
 
     <div class="home-gallery-row">
         <div class="gallery-item"><img src="img/主页3.jpg"></div>
@@ -250,7 +247,7 @@
     let minDistance = 3.0;    
     let maxDistance = 50;   
     let targetPhi = Math.PI / 2.3; 
-    let targetTheta = 0.8;
+    let targetTheta = -0.8; 
 
     let currentLookAt = new THREE.Vector3(0, 1.5, 0);
     let currentDistance = 35; 
@@ -280,7 +277,6 @@
     ];
 
     function init() {
-        // 安全检测：确保库已成功挂载
         if (typeof THREE === 'undefined' || !THREE.GLTFLoader || !THREE.DRACOLoader) {
             console.error("Three.js 核心库或解码器未准备就绪，延迟初始化");
             setTimeout(init, 300);
@@ -312,7 +308,6 @@
 
         loadYourOwnModel('6777.glb');
 
-        // 多端手势通用适配
         window.addEventListener('mousemove', onPointerMove);
         window.addEventListener('touchmove', onPointerMove, { passive: false });
         window.addEventListener('mousedown', onPointerDown);
@@ -341,10 +336,9 @@
     function loadYourOwnModel(url) {
         document.getElementById('loading-screen').style.display = 'flex';
         const loader = new THREE.GLTFLoader();
-        
         const dracoLoader = new THREE.DRACOLoader();
-        // 🛠️ 关键修复：更换为国内及手机端访问更平滑的 CDN 解码器路径
-        dracoLoader.setDecoderPath('./draco/');
+        
+        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
         loader.setDRACOLoader(dracoLoader);
 
         loader.load(url, function (gltf) {
@@ -365,7 +359,6 @@
 
             presetMarkersData.forEach(data => { createFadingMarker(data); });
             document.getElementById('loading-screen').style.display = 'none';
-            dracoLoader.dispose();
         }, undefined, function (error) {
             console.error('手机端解析模型流异常:', error);
             document.getElementById('loading-screen').style.display = 'none';
@@ -448,7 +441,7 @@
             const box = new THREE.Box3().setFromObject(model);
             targetDistance = Math.max(box.getSize(new THREE.Vector3()).x * (window.innerWidth < 768 ? 2.0 : 1.5), 14);
         }
-        targetTheta = 1.0;
+        targetTheta = -1.0;
     }
 
     function exitToHome() {
@@ -465,11 +458,8 @@
         document.getElementById('panel-desc').innerText = markerData.desc;
         document.getElementById('panel-img').src = markerData.imgUrl;
         
-        if(window.innerWidth < 768) {
-            document.getElementById('close-panel-btn').innerText = '✕';
-        } else {
-            document.getElementById('close-panel-btn').innerText = '➔';
-        }
+        // 🛠️ 核心优化：不论PC端还是移动端，都统一为 '✕' 图标
+        document.getElementById('close-panel-btn').innerText = '✕';
 
         document.getElementById('detail-panel').classList.add('open');
         document.getElementById('left-btns').classList.add('dimmed');
@@ -542,7 +532,7 @@
         }
 
         if (isInteracting && (!e.touches || e.touches.length === 1)) {
-            targetTheta += (coords.clientX - lastX) * 0.008; 
+            targetTheta -= (coords.clientX - lastX) * 0.008; 
             targetPhi -= (coords.clientY - lastY) * 0.008;
             targetPhi = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, targetPhi));
             lastX = coords.clientX; lastY = coords.clientY;
@@ -575,7 +565,7 @@
         if (e.target.tagName !== 'CANVAS') return;
         
         let endX = (e.changedTouches && e.changedTouches.length > 0) ? e.changedTouches[0].clientX : e.clientX;
-        let endY = (e.changedTouches && e.changedTouches.length > 0) ? e.changedTouches[0].clientY : e.clientY;
+        let endY = (e.changedTouches && e.changedTouches.length > 0) ? e.changedTouches[0].clientY : e.clientY; 
 
         if (Math.abs(endX - pointerDownX) > 8 || Math.abs(endY - pointerDownY) > 8) return;
 
@@ -630,7 +620,6 @@
         renderer.render(scene, camera);
     }
 
-    // 安全启动
     window.addEventListener('load', function() {
         setTimeout(init, 100);
     });
