@@ -61,7 +61,6 @@
             box-shadow: 0 6px 15px rgba(0,0,0,0.25); transition: all 0.25s; touch-action: manipulation;
         }
 
-        /* 大屏右侧大宣纸信息面板 */
         .right-info-panel {
             position: absolute; top: 30px; height: calc(100% - 60px); width: 450px; right: -560px; color: var(--text-dark);
             box-shadow: -10px 10px 35px rgba(0,0,0,0.25); transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -93,16 +92,11 @@
         #op-tip { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; z-index: 99; letter-spacing: 1px; pointer-events: none; text-align: center; white-space: nowrap;}
         .hidden { display: none !important; }
 
-        /* =========================================================================
-           📱 针对手机竖屏（屏幕宽度小于 768px）的流式响应式覆盖样式
-           ========================================================================= */
         @media screen and (max-width: 768px) {
             #homepage-container { padding: 16px; gap: 16px; overflow-y: auto; }
             .home-main-row { flex-direction: column; height: auto; flex: none; gap: 16px; }
-            
             .cover-box { height: 220px; flex: none; }
             .map-box { height: 200px; flex: none; }
-            
             .home-gallery-row { height: 140px; gap: 12px; flex: none; margin-top: 5px; }
             .gallery-item { flex: 0 0 180px; }
             .gallery-arrow { display: none; } 
@@ -110,7 +104,6 @@
             .left-controls { top: 16px; left: 16px; gap: 10px; width: calc(100% - 32px); flex-direction: row; flex-wrap: wrap; }
             .classic-btn { padding: 8px 14px; font-size: 0.9rem; letter-spacing: 1px; flex: 1; text-align: center; white-space: nowrap; }
 
-            /* 手机端大宣纸面板全屏重构 */
             .right-info-panel {
                 width: 100% !important; height: 75% !important; 
                 bottom: -80% !important; top: auto !important; 
@@ -120,8 +113,6 @@
                 transition: bottom 0.4s ease-out !important;
             }
             .right-info-panel.open { bottom: 0 !important; right: 0 !important; }
-            
-            /* 手机端关闭按钮：修改为右上角醒目的圆形 X 按钮，极大提升触控区域和响应 */
             .panel-close-btn {
                 left: auto !important; right: 16px !important; top: 16px !important;
                 border-radius: 50% !important; width: 36px !important; height: 36px !important;
@@ -134,7 +125,6 @@
             .panel-body-content { padding: 20px; }
             .panel-main-title { font-size: 1.8rem; }
             .panel-desc-text { font-size: 1rem; line-height: 1.6; }
-            
             #op-tip { font-size: 0.75rem; width: 85%; bottom: 15px; }
         }
     </style>
@@ -148,14 +138,13 @@
 
 <canvas id="webgl-canvas"></canvas>
 
-<div id="op-tip" class="hidden">拖拽旋转 | 双指缩放 | 点击红色热点查阅</div>
+<div id="op-tip" class="hidden">拖拽旋转 | 双指缩放 | 点击热点查阅</div>
 
 <div id="homepage-container">
     <div class="home-main-row">
         <div class="cover-box" onclick="enterMuseum()">
             <img src="img/主页1 .jpg" alt="展馆封面">
         </div>
-
         <div class="map-box">
             <img src="img/主页2.jpg" alt="手绘地图">
         </div>
@@ -242,6 +231,13 @@
     ];
 
     function init() {
+        // 安全检测：确保库已成功挂载
+        if (typeof THREE === 'undefined' || !THREE.GLTFLoader || !THREE.DRACOLoader) {
+            console.error("Three.js 核心库或解码器未准备就绪，延迟初始化");
+            setTimeout(init, 300);
+            return;
+        }
+
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x7c565d); 
         scene.fog = new THREE.FogExp2(0x7c565d, 0.012);
@@ -267,7 +263,7 @@
 
         loadYourOwnModel('6777.glb');
 
-        // 多端手势监听
+        // 多端手势通用适配
         window.addEventListener('mousemove', onPointerMove);
         window.addEventListener('touchmove', onPointerMove, { passive: false });
         window.addEventListener('mousedown', onPointerDown);
@@ -277,18 +273,14 @@
         window.addEventListener('wheel', onWindowWheel, { passive: false }); 
         window.addEventListener('resize', onResize);
 
-        // 🛠️ 彻底重构关闭按钮的绑定事件（支持 pointerdown 与 touchstart，双保险确保秒关）
         const closeBtn = document.getElementById('close-panel-btn');
         const handleClose = function(e) {
-            e.preventDefault();
-            e.stopPropagation();
+            e.preventDefault(); e.stopPropagation();
             closeDetailPanel();
         };
         closeBtn.addEventListener('pointerdown', handleClose);
         closeBtn.addEventListener('touchstart', handleClose);
-        closeBtn.addEventListener('click', handleClose);
 
-        // 防止面板内的普通滑动与 3D 空间产生冲突
         const detailPanel = document.getElementById('detail-panel');
         detailPanel.addEventListener('pointerdown', (e) => { if(e.target !== closeBtn) e.stopPropagation(); });
         detailPanel.addEventListener('touchstart', (e) => { if(e.target !== closeBtn) e.stopPropagation(); });
@@ -302,7 +294,8 @@
         const loader = new THREE.GLTFLoader();
         
         const dracoLoader = new THREE.DRACOLoader();
-        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+        // 🛠️ 关键修复：更换为国内及手机端访问更平滑的 CDN 解码器路径
+        dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');
         loader.setDRACOLoader(dracoLoader);
 
         loader.load(url, function (gltf) {
@@ -325,7 +318,7 @@
             document.getElementById('loading-screen').style.display = 'none';
             dracoLoader.dispose();
         }, undefined, function (error) {
-            console.error('模型解析异常:', error);
+            console.error('手机端解析模型流异常:', error);
             document.getElementById('loading-screen').style.display = 'none';
         });
     }
@@ -423,7 +416,6 @@
         document.getElementById('panel-desc').innerText = markerData.desc;
         document.getElementById('panel-img').src = markerData.imgUrl;
         
-        // 更换移动端 X 按钮的符号确保直观
         if(window.innerWidth < 768) {
             document.getElementById('close-panel-btn').innerText = '✕';
         } else {
@@ -589,7 +581,10 @@
         renderer.render(scene, camera);
     }
 
-    window.onload = init;
+    // 安全启动
+    window.addEventListener('load', function() {
+        setTimeout(init, 100);
+    });
 </script>
 </body>
 </html>
